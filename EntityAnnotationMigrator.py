@@ -2,15 +2,20 @@
 Entity Annotation Migrator (EAM)
 v1.0
 
-Last modified July 22, 2018
+Usage:
+  * Run manually for each entity you want to switch the annotations for.
+  * Then execute e.g.
+      `python3 EntityAnnotationMigrator.py [filename (optional)] > output.txt`
+  * Fix any import statement issues in the output, and you're done!
 """
 import re
 import traceback
+import sys
 
-DEBUG = True
-NEWLINE_BETWEEN_DEFINITIONS = False
+DEBUG = False
+NEWLINE_BETWEEN_DEFINITIONS = True
 COMMENT_PREFIX = "//"
-FILENAME = "input.txt"  # TODO: Allow reading from standard input
+FILENAME = "input.txt"
 
 
 def getEntireFunction(data, start):
@@ -40,7 +45,7 @@ def getEntireFunction(data, start):
         raise Exception(
             "getEntireFunction error: Syntax Problem around line %d" % start)
 
-    return (start, end + 1) if parens == 0 else (None, None)
+    return (start, end) if parens == 0 else (None, None)
 
 
 def readFile(filename, variableInfo, variableNames):
@@ -90,7 +95,7 @@ def readFile(filename, variableInfo, variableNames):
                         varName = line.split()[2]
                         if not (varName.startswith("get") or varName.startswith("set")):
                             start, i = getEntireFunction(data, i)
-                            otherFunc = data[start:i]
+                            otherFunc = data[start:i+1]
                             variableInfo["otherFunctions"].append(otherFunc)
                             continue
                         varName = re.search('(.*)\(', varName[3:])[0][:-1]
@@ -99,9 +104,9 @@ def readFile(filename, variableInfo, variableNames):
                         if not line.startswith("public void"):
                             # It's a getter
                             start, i = getEntireFunction(data, i)
-                            variableInfo[varName]["Getter"] = data[start:i]
+                            variableInfo[varName]["Getter"] = data[start:i+1]
                             k = 0
-                            while variableInfo[varName]["Getter"][k].startswith("@"):
+                            while variableInfo[varName]["Getter"][k].strip().startswith("@"):
                                 k += 1
                             # Split into Annotations and Getter Function Body
                             variableInfo[varName]["HAnn"] = variableInfo[varName]["Getter"][:k]
@@ -109,10 +114,10 @@ def readFile(filename, variableInfo, variableNames):
                         else:
                             # It's a setter
                             start, i = getEntireFunction(data, i)
-                            variableInfo[varName]["Setter"] = data[start:i]
+                            variableInfo[varName]["Setter"] = data[start:i+1]
                             # It shouldn't have annotations preceding it, but just in case...
                             k = 0
-                            while variableInfo[varName]["Setter"][k].startswith("@"):
+                            while variableInfo[varName]["Setter"][k].strip().startswith("@"):
                                 k += 1
                             # Split into Annotations and Setter Function Body
                             variableInfo[varName]["HAnn"] += variableInfo[varName]["Setter"][:k]
@@ -132,7 +137,7 @@ def printMigrated(variableInfo, variableNames):
         print(line, end="")
 
     for v in variableNames:
-        for line in variableInfo[v]["HAnn"][:-1]:
+        for line in variableInfo[v]["HAnn"]:
             print(line, end="")
         for line in variableInfo[v]["Declaration"]:
             print(line, end="")
@@ -167,10 +172,12 @@ def migrate():
     variableInfo["otherFunctions"] = []
     readFile(FILENAME, variableInfo, variableNames)
     if DEBUG:
-        print(variableInfo["activitiesById"])
+        print(variableInfo["toolId"])
     else:
         printMigrated(variableInfo, variableNames)
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        FILENAME = sys.argv[1]
     migrate()
