@@ -1,4 +1,4 @@
-# JacksonHibernateAnnotationSwitcher
+# Jackson-Hibernate-Annotation-Migrator
 Script to switch Jackson annotations to field getters/setters for Java Hibernate entities
 
 ### Introduction
